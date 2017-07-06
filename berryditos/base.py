@@ -39,7 +39,7 @@ try:
 except NameError:
 	rawinput = input
 
-DRYRUN = 1
+DRYRUN = 'live' not in sys.argv
 __version__ = '0.0.3'
 
 def dryrunnable(verbose=0):
@@ -212,12 +212,7 @@ def extract_bootpart(img):
 	return bootimg
 
 class RPiImage(object):
-	def __init__(self, d=None, img=None, bootonly=None, dryrun=True):
-		self.dryrun = dryrun
-		global DRYRUN
-		old_dryrun = DRYRUN
-		DRYRUN = self.dryrun
-
+	def __init__(self, d=None, img=None, bootonly=None):
 		self.image = img or lastraspbian()
 		self.bootonusb = False
 		if not d:
@@ -225,8 +220,6 @@ class RPiImage(object):
 		self.ddev = '/dev/' + d if not d.startswith('/dev/') else d
 		self.bootonly = bootonly
 		self.work()
-
-		DRYRUN = old_dryrun
 	def s(self, t):
 		oss(t)
 	def part(self, n):
@@ -256,7 +249,7 @@ class RPiImage(object):
 		self.s('mv {}/* {}/UNUSED'.format(partition, partition))
 		self.s('echo "This partition is not used because your RPi will boot on the SD boot partition, then will run the OS on {}" > {}/Why_this_partition_is_UNUSED.txt'.format(self.bootonusb, partition))
 	def prepare_boot(self, part=None):
-		with MountEnv(part or self.part(1), self.s, self.dryrun) as tempdir:
+		with MountEnv(part or self.part(1), self.s, DRYRUN) as tempdir:
 			if self.bootonusb:
 				self.prepare_unused_boot(tempdir)
 				return
@@ -267,7 +260,7 @@ class RPiImage(object):
 	def prepare_system(self, part=None):
 		if self.bootonly:
 			return
-		with MountEnv(part or self.part(2), self.s, self.dryrun) as tempdir:
+		with MountEnv(part or self.part(2), self.s, DRYRUN) as tempdir:
 			for c in ActionSystem.__subclasses__():
 				action = c()
 				if action.confirm(self):
@@ -345,7 +338,6 @@ def run(*a, **kw):
 	if '--help' in sys.argv or 'help' in sys.argv:
 		print_help()
 		exit()
-	kw['dryrun'] = 'live' not in sys.argv
 	RPiImage(*a, **kw)
 
 def unzip(fn, target_name):
